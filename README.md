@@ -57,6 +57,7 @@ npm run dev
 | 冲击地压 | `rockburst` | 微震监测 | 监测编号、所在区域、微震能量 |
 | 人员定位 | `personnel` | 定位终端 | 终端编号、携带人员、所在位置 |
 | 粉尘防治 | `dust` | 粉尘测点 | 测点编号、所在区域、粉尘浓度 |
+| 粉尘治理前后对比 | `views/dust/compare.vue` | 测点分段对比 | 治理前后读数、降尘措施生效日期、降尘效率、游离二氧化硅限值 |
 | 防灭火 | `fireprevent` | 防火监测 | 监测编号、所在区域、束管监测 |
 | 皮带运输 | `belt` | 运输皮带 | 皮带编号、所属巷道、运输长度 |
 | 提升系统 | `hoist` | 提升机 | 提升机编号、提升类型、提升高度 |
@@ -76,3 +77,18 @@ npm run dev
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+## 粉尘治理前后对比
+
+- 页面：侧边栏「治理前后对比」（`/dust-compare`），数据接口
+  `GET /api/dust/compare`（参数 `measure` 按降尘措施过滤、`region` 按区域过滤、
+  `as_of=YYYY-MM-DD` 指定对比时点）。
+- 月度报表：`GET /api/dust/monthly-report?month=YYYY-MM`，结论与对比视图同源于
+  `app/services/dust_compare.py` 的一份分段口径，逐段读数和效率保持一致。
+- 数据落在内存仓库的三张内部表：`dust_points`（测点档案/存量治理日期）、
+  `dust_measures`（措施履历及生效日期）、`dust_samples`（采样流水及中断补测标记），
+  不进运营概览统计。
+- 口径要点：措施按**生效日期**分段（与治理日期冲突时以生效日期为准，旧区间按当时措施保留）；
+  采样中断补测接原段续算不另分段；效率算不出一律留空并写明原因，不计零；
+  游离二氧化硅超过 10% 单独标出；存量测点按治理日期回填。
+- 回归测试（标准库）：`cd backend && python3 -m unittest discover -s tests -v`。

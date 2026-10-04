@@ -9,6 +9,7 @@ const Waterhazard = () => import('@/views/waterhazard/index.vue')
 const Rockburst = () => import('@/views/rockburst/index.vue')
 const Personnel = () => import('@/views/personnel/index.vue')
 const Dust = () => import('@/views/dust/index.vue')
+const DustCompare = () => import('@/views/dust/compare.vue')
 const Fireprevent = () => import('@/views/fireprevent/index.vue')
 const Belt = () => import('@/views/belt/index.vue')
 const Hoist = () => import('@/views/hoist/index.vue')
@@ -34,6 +35,7 @@ const router = createRouter({
     { path: '/rockburst', name: 'rockburst', component: Rockburst },
     { path: '/personnel', name: 'personnel', component: Personnel },
     { path: '/dust', name: 'dust', component: Dust },
+    { path: '/dust-compare', name: 'dust-compare', component: DustCompare },
     { path: '/fireprevent', name: 'fireprevent', component: Fireprevent },
     { path: '/belt', name: 'belt', component: Belt },
     { path: '/hoist', name: 'hoist', component: Hoist },

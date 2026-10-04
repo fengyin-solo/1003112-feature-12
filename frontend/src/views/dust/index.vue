@@ -7,6 +7,7 @@
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记粉尘测点</button>
+        <router-link class="btn" to="/dust-compare">治理前后对比</router-link>
         <button class="btn" type="button" @click="exportRows">导出粉尘防治清单</button>
       </div>
     </header>
