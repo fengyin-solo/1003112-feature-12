@@ -8,6 +8,10 @@ from typing import Any
 
 from app.seed import SEED_ROWS
 
+# 粉尘治理前后对比的辅助表：仍可通过 rows() 读写，但不算独立业务模块，
+# 不进运营概览的模块数与待处理统计，归属在粉尘防治（dust）模块里。
+AUX_TABLES = {"dust_point", "dust_measure", "dust_reading"}
+
 
 class Store:
     def __init__(self) -> None:
@@ -16,7 +20,7 @@ class Store:
         }
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        return sorted(name for name in self._tables if name not in AUX_TABLES)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])

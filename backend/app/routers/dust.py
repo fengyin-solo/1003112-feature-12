@@ -1,4 +1,8 @@
-"""粉尘防治接口：维护粉尘测点，覆盖限值预警、超标治理、治理确认等动作。"""
+"""粉尘防治接口：维护粉尘测点，覆盖限值预警、超标治理、治理确认等动作。
+
+另含治理前后对比视图与月度报表两个只读接口：两者共用 service 里同一份分段口径，
+保证报表结论与视图逐条对得上。
+"""
 from __future__ import annotations
 
 from typing import Any
@@ -30,6 +34,36 @@ def list_entries(
     return PageResult(items=items, total=total, page=page, size=size)
 
 
+@router.get("/comparison")
+def comparison(
+    area: str | None = Query(default=None, description="按所在区域过滤"),
+    measure: str | None = Query(default=None, description="只看某一类降尘措施"),
+    keyword: str | None = Query(default=None, description="按测点编号检索"),
+) -> dict[str, Any]:
+    """治理前后对比视图：同测点治理前/治理后浓度并排，效率从高到低，按区域分组。
+
+    效率算不出来的分段不返回数值，只返回留空原因（治理前未采样/治理后未复测/未落实措施）。
+    """
+    return service.build_comparison(area=area, measure=measure, keyword=keyword)
+
+
+@router.get("/monthly-report")
+def monthly_report(
+    month: str | None = Query(default=None, description="报表月份 YYYY-MM，缺省取最近有数据的月份"),
+) -> dict[str, Any]:
+    """粉尘防治月度报表：对比口径按月过滤，结论与对比视图完全一致。"""
+    if month and (len(month) != 7 or month[4] != "-"):
+        raise HTTPException(status_code=400, detail="月份格式应为 YYYY-MM，例如 2026-09")
+    return service.monthly_report(month)
+
+
+@router.get("/export")
+def export_entries() -> dict[str, Any]:
+    """导出粉尘防治清单：返回当前过滤条件下的全量数据。"""
+    items, total = service.list_entries(page=1, size=10000)
+    return {"module": "dust", "total": total, "items": items}
+
+
 @router.get("/{entry_id}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条粉尘测点明细；不存在时给出可读的错误说明。"""
@@ -56,10 +90,3 @@ def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     if entry is None:
         return ActionResult(ok=False, message=message)
     return ActionResult(ok=True, message=message, entry=entry)
-
-
-@router.get("/export")
-def export_entries() -> dict[str, Any]:
-    """导出粉尘防治清单：返回当前过滤条件下的全量数据。"""
-    items, total = service.list_entries(page=1, size=10000)
-    return {"module": "dust", "total": total, "items": items}

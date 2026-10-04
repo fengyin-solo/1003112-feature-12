@@ -3,7 +3,7 @@
     <header class="page-head">
       <div>
         <h2>粉尘防治管理</h2>
-        <p class="page-desc">维护粉尘测点，围绕测点编号、所在区域、粉尘浓度、游离二氧化硅做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护粉尘测点，并按降尘措施生效日期统一分段：治理前后浓度并排、降尘效率排序、二氧化硅超限标出，结论同步到月度报表。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记粉尘测点</button>
@@ -11,120 +11,72 @@
       </div>
     </header>
 
-    <div class="stat-row">
-      <article v-for="item in stats" :key="item.label" class="stat-card">
-        <span class="stat-label">{{ item.label }}</span>
-        <strong class="stat-value">{{ item.value }}</strong>
-      </article>
-    </div>
+    <nav class="tab-bar">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        type="button"
+        class="tab-item"
+        :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >
+        {{ tab.label }}
+      </button>
+    </nav>
 
-    <form class="filter-bar" @submit.prevent="reload">
-      <label v-for="field in filterFields" :key="field" class="filter-item">
-        <span>{{ field }}</span>
-        <input v-model="filters[field]" :placeholder="`按${field}检索`" />
-      </label>
-      <button class="btn" type="submit">查询</button>
-      <button class="btn ghost" type="button" @click="resetFilters">重置条件</button>
-    </form>
+    <LedgerPane v-if="activeTab === 'ledger'" />
+    <ComparisonPane v-else-if="activeTab === 'comparison'" />
+    <MonthlyReportPane v-else />
 
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th v-for="column in columns" :key="column">{{ column }}</th>
-          <th>可执行动作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
-          <td class="row-actions">
-            <button
-              v-for="action in actions"
-              :key="action"
-              class="link"
-              type="button"
-              @click="runAction(action, row)"
-            >
-              {{ action }}
-            </button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length">
-          <td :colspan="columns.length + 1" class="empty-state">暂无粉尘防治数据，可先登记粉尘测点</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <footer class="page-foot">
-      <span>共 {{ total }} 条粉尘防治记录</span>
-      <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
-    </footer>
+    <p v-if="actionMessage" class="page-foot error-text">{{ actionMessage }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 
-import { request } from '@/api/client'
+import ComparisonPane from '@/views/dust/ComparisonPane.vue'
+import LedgerPane from '@/views/dust/LedgerPane.vue'
+import MonthlyReportPane from '@/views/dust/MonthlyReportPane.vue'
 
-type Row = Record<string, string | number | null>
+const tabs = [
+  { key: 'ledger', label: '测点台账' },
+  { key: 'comparison', label: '治理前后对比' },
+  { key: 'report', label: '月度报表' },
+] as const
 
-const ENDPOINT = '/api/dust'
-const columns = ["测点编号", "所在区域", "粉尘浓度", "游离二氧化硅", "降尘措施", "降尘效率", "监测日期", "测点状态"]
-const actions = ["限值预警", "超标治理", "治理确认"]
-const statuses = ["达标", "接近限值", "超标", "已治理"]
-const stats = [{"label": "达标测点", "value": 0}, {"label": "接近限值测点", "value": 0}, {"label": "超标测点", "value": 0}]
-
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
+const activeTab = ref<(typeof tabs)[number]['key']>('comparison')
+const actionMessage = ref('')
 
 function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
+  window.open('/api/dust/export', '_blank')
 }
 
 function openCreate() {
-  errorMessage.value = '粉尘测点登记入口尚未接入审批流'
+  actionMessage.value = '粉尘测点登记入口尚未接入审批流'
 }
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('粉尘防治动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '粉尘防治操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('粉尘测点列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '粉尘防治列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>
+
+<style scoped>
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.tab-item {
+  border: none;
+  background: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-item.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  font-weight: 600;
+}
+</style>
